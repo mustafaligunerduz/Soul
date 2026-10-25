@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Souls: Abyss Chronicles - Clean Sync</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #0c0c14; font-family: 'Cinzel', 'Times New Roman', serif; color: #d4d4d4; }
+        
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; cursor: crosshair; }
+
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 25px; }
+        .interactive { pointer-events: auto; }
+
+        #main-menu, #mp-menu, #waiting-room { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(20,20,30,0.96) 0%, rgba(4,4,8,0.99) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.8s ease; }
+        #mp-menu, #waiting-room { display: none; }
+        
+        h1 { font-size: 4rem; color: #b8860b; text-shadow: 0 0 25px rgba(184, 134, 11, 0.7); margin-bottom: 5px; letter-spacing: 6px; }
+        p { font-size: 1.15rem; color: #888; margin-bottom: 30px; font-style: italic; }
+        .menu-btn { background: linear-gradient(to bottom, #2a2a2a, #111); border: 2px solid #666; color: #ccc; padding: 15px 40px; font-size: 1.2rem; cursor: pointer; margin: 10px; width: 280px; font-family: inherit; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }
+        .menu-btn:hover { border-color: #b8860b; color: #fff; background: linear-gradient(to bottom, #3a3a3a, #1a1a1a); text-shadow: 0 0 10px #b8860b; transform: scale(1.04); }
+        .menu-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; border-color: #444 !important; }
+
+        .custom-input { background: #111; border: 2px solid #b8860b; color: #fff; padding: 12px; font-size: 1.1rem; width: 280px; text-align: center; margin-bottom: 15px; font-family: inherit; outline: none; }
+        .color-picker-group { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; color: #aaa; font-size: 1rem; }
+        .color-picker-group input[type="color"] { width: 45px; height: 35px; border: none; cursor: pointer; background: transparent; }
+
+        #cinematic-subtitle { display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 100; font-size: 1.5rem; color: #ff4500; text-shadow: 0 0 12px rgba(255,69,0,0.8); text-align: center; letter-spacing: 2px; font-style: italic; width: 80%; transition: opacity 0.5s ease; }
+
+        #hud { display: none; width: 100%; justify-content: space-between; align-items: flex-start; }
+        .status-group { background: rgba(15,15,20,0.9); border: 2px solid #444; padding: 15px; border-radius: 4px; width: 320px; box-shadow: 0 8px 25px rgba(0,0,0,0.8); }
+        .bar-container { width: 100%; background: #1a0000; height: 14px; border: 1px solid #555; margin-top: 6px; position: relative; overflow: hidden; }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.2s ease; }
+        #hp-fill { background: linear-gradient(to right, #8b0000, #dc143c); }
+        #stamina-fill { background: linear-gradient(to right, #b8860b, #ffd700); }
+        .bar-label { font-size: 0.8rem; font-weight: bold; letter-spacing: 1px; color: #ccc; display: flex; justify-content: space-between; }
+
+        #boss-hud { display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 600px; text-align: center; }
+        #boss-name { font-size: 1.2rem; color: #ff3b3b; text-shadow: 0 0 10px rgba(255,59,59,0.7); margin-bottom: 5px; font-weight: bold; letter-spacing: 2px; }
+        #boss-bar-container { width: 100%; background: #1a0000; height: 18px; border: 2px solid #661111; position: relative; box-shadow: 0 0 15px rgba(139,0,0,0.5); }
+        #boss-hp-fill { height: 100%; width: 100%; background: linear-gradient(to right, #b22222, #ff4500); transition: width 0.15s ease; }
+
+        #controls-hint { display: none; position: absolute; bottom: 25px; left: 25px; background: rgba(10,10,15,0.85); border: 1px solid #555; padding: 14px; font-size: 0.85rem; color: #ccc; line-height: 1.6; border-radius: 4px; }
+        #controls-hint span { color: #b8860b; font-weight: bold; }
+
+        #overlay-screen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,0,0,0.92); z-index: 150; flex-direction: column; align-items: center; justify-content: center; }
+        #overlay-screen h2 { font-size: 4rem; margin-bottom: 20px; letter-spacing: 5px; text-shadow: 0 0 30px currentColor; }
+
+        #settings-panel { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(12,12,18,0.97); z-index: 120; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
+        #settings-panel h2 { color: #b8860b; font-size: 2.5rem; margin-bottom: 20px; letter-spacing: 3px; }
+        .info-box { background: rgba(22,22,30,0.85); border: 1px solid #555; padding: 25px; width: 650px; max-height: 60vh; overflow-y: auto; border-radius: 6px; margin-bottom: 25px; line-height: 1.6; font-size: 0.955rem; color: #ccc; }
+        .info-box h3 { color: #eee; margin-top: 15px; margin-bottom: 5px; font-size: 1.1rem; border-bottom: 1px solid #444; padding-bottom: 3px; }
+        .diff-selector { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
+        .diff-btn { background: #222; border: 1px solid #661111; color: #ccc; padding: 10px 20px; cursor: pointer; font-family: inherit; transition: 0.3s; }
+        .diff-btn.active { background: #5a0000; color: #fff; border-color: #ff3b3b; font-weight: bold; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+    <div id="main-menu">
+        <h1>ABYSS KEEPER</h1>
+        <p>"Karanlık taht sahibini bekliyor..."</p>
+        <button class="menu-btn" onclick="startSinglePlayer()">TEK OYUNCULU BAŞLA</button>
+        <button class="menu-btn" onclick="openMPMenu()">ÇOK OYUNCULU</button>
+        <button class="menu-btn" onclick="openSettings()">BİLGİ & AYARLAR</button>
+        <button class="menu-btn" onclick="closeGame()">ÇIKIŞ YAP</button>
+    </div>
+
+    <div id="mp-menu">
+        <h1>ÇOK OYUNCULU</h1>
+        <input type="text" id="player-name-input" class="custom-input" placeholder="Savaşçı İsmi" value="Kül Gezgini">
+        <div class="color-picker-group">
+            <label>Kıyafet Rengi:</label>
+            <input type="color" id="player-color-input" value="#3c3c48">
+        </div>
+        <button class="menu-btn" onclick="openCreateRoomPrompt()">Oda Oluştur</button>
+        <button class="menu-btn" onclick="openJoinRoomPrompt()">Kod Gir</button>
+        <button class="menu-btn" onclick="backToMainMenu()">Geri Dön</button>
+    </div>
+
+    <div id="waiting-room">
+        <h1>BEKLEME ODASI</h1>
+        <p id="room-code-display" style="color: #ffd700; font-size: 1.4rem; letter-spacing: 2px;">Oda Kodu: Yükleniyor...</p>
+        <p id="room-info" style="color: #aaa; margin-bottom: 10px;">Oyuncu Sayısı: 1 / 8</p>
+        <p id="room-diff-info" style="color: #ff4500; font-size: 1rem;">Zorluk: NORMAL (Oda kurucu 'G' tuşu ile değiştirebilir)</p>
+        <div id="player-list" style="margin-bottom: 25px; color: #ccc; font-style: normal;">Savaşçılar Bekleniyor (En az 2 kişi gerekli)...</div>
+        <button class="menu-btn" id="start-mp-game-btn" onclick="startMultiplayerGame()" disabled>SAVAŞI BAŞLAT (2+ KİŞİ GEREKLİ)</button>
+        <button class="menu-btn" onclick="backToMainMenu()">ÇIKIŞ YAP</button>
+    </div>
+
+    <div id="cinematic-subtitle">...</div>
+
+    <div id="settings-panel">
+        <h2>BİLGİ & AYARLAR MENÜSÜ</h2>
+        <div class="info-box">
+            <h3>📖 OYUN LORE & HİKAYE</h3>
+            <p>Siz "Kül Gezgini" olarak unutulmuş bir çağın sonuna hapsolmuşsunuz. Abyss Lord Malcor, ebedi tahtı ele geçirdi. Onu alt etmek için reflekslerinizi konuşturun.</p>
+            
+            <h3>🎮 KONTROL REHBERİ</h3>
+            <p>• <b>WASD:</b> Hareket Et<br>
+               • <b>MAUSE:</b> Kamerayı Çevir<br>
+               • <b>SOL TIK:</b> Kılıç ile Vur<br>
+               • <b>BOŞLUK:</b> Takla at (Dodge)<br>
+               • <b>G Tuşu:</b> Bekleme odasında zorluk değiştir (Oda Kurucu)</p>
+
+            <h3>⚙️ ZORLUK DERECESİ SEÇİMİ</h3>
+            <div class="diff-selector">
+                <button class="diff-btn" onclick="setDifficulty('easy', this)">KOLAY</button>
+                <button class="diff-btn active" onclick="setDifficulty('normal', this)">NORMAL</button>
+                <button class="diff-btn" onclick="setDifficulty('hard', this)">ZOR</button>
+                <button class="diff-btn" onclick="setDifficulty('souls', this)">SOULS-LIKE</button>
+            </div>
+        </div>
+        <button class="menu-btn" onclick="closeSettings()">ANA MENÜYE DÖN</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div class="ui-layer">
+        <div id="hud" class="interactive">
+            <div class="status-group">
+                <div class="bar-label"><span>KÜL GEZGİNİ (HP)</span><span id="hp-text">100 / 100</span></div>
+                <div class="bar-container"><div id="hp-fill" class="bar-fill"></div></div>
+                
+                <div class="bar-label" style="margin-top: 10px;"><span>DAYANIKLILIK (STAMINA)</span><span id="stamina-text">100 / 100</span></div>
+                <div class="bar-container"><div id="stamina-fill" class="bar-fill"></div></div>
+            </div>
+        </div>
+
+        <div id="controls-hint">
+            <span>WASD</span> : Hareket Et<br>
+            <span>MAUSE</span> : Kamerayı Çevir<br>
+            <span>SOL TIK</span> : Kılıç Saldırısı<br>
+            <span>BOŞLUK</span> : Takla (Dodge)
+        </div>
+
+        <div id="boss-hud">
+            <div id="boss-name">THE ABYSS LORD - MALCOR</div>
+            <div id="boss-bar-container">
+                <div id="boss-hp-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay-screen">
+        <h2 id="overlay-title">ÖLDÜN</h2>
+        <p id="overlay-desc" style="color: #888; font-size: 1.2rem; margin-bottom: 30px; font-style: italic;">Karanlık seni yuttu...</p>
+        <button class="menu-btn" onclick="location.reload()">TEKRAR DENEME</button>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'boss_roar') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(60, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.6);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            } else if (type === 'magic') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.4);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'dodge') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+        }
+
+        let scene, camera, renderer;
+        let player, boss;
+        let keys = { w: false, a: false, s: false, d: false };
+        let gameState = 'MENU';
+        let cameraAngle = 0;
+        let cameraPitch = 0.4;
+        let introTimer = 0;
+        
+        let peer = null;
+        let isHost = false;
+        let maxPlayers = 4;
+        let connectedConns = [];
+        let hostConnection = null;
+        let roomCode = "";
+        let remotePlayers = {};
+
+        let myProfile = {
+            name: "Kül Gezgini",
+            color: "#3c3c48"
+        };
+
+        let gameDifficulty = 'normal';
+        let difficultySettings = {
+            easy: { bossHp: 400, bossDmgMultiplier: 0.6, jumpSpeed: 0.012, minionInterval: 5.0, minionCount: 1, jumpInterval: 18.0, minionHp: 25, minionSpeed: 0.04 },
+            normal: { bossHp: 600, bossDmgMultiplier: 1.0, jumpSpeed: 0.018, minionInterval: 5.0, minionCount: 3, jumpInterval: 14.0, minionHp: 50, minionSpeed: 0.07 },
+            hard: { bossHp: 800, bossDmgMultiplier: 1.4, jumpSpeed: 0.025, minionInterval: 7.0, minionCount: 5, jumpInterval: 10.0, minionHp: 75, minionSpeed: 0.10 },
+            souls: { bossHp: 1000, bossDmgMultiplier: 1.8, jumpSpeed: 0.035, minionInterval: 10.0, minionCount: 8, jumpInterval: 7.0, minionHp: 100, minionSpeed: 0.14 }
+        };
+
+        let playerStats = { hp: 100, maxHp: 100, stamina: 100, maxStamina: 100 };
+        let bossStats = { hp: 600, maxHp: 600, attackTimer: 0 };
+        let combat = { canAttack: true, isDodging: false };
+        let projectiles = [];
+        let minions = [];
+        let torches = [];
+
+        let minionTimer = 0;
+        let jumpTimer = 0;
+
+        let bossJumpState = {
+            isJumping: false,
+            progress: 0,
+            startPos: new THREE.Vector3(),
+            targetPos: new THREE.Vector3()
+        };
+
+        function setDifficulty(diff, btn) {
+            gameDifficulty = diff;
+            if(btn) {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            bossStats.maxHp = difficultySettings[diff].bossHp * (1 + (connectedConns.length * 0.25));
+            bossStats.hp = bossStats.maxHp;
+
+            if (isHost) {
+                broadcast({ type: 'DIFF_UPDATE', diff: diff });
+            }
+        }
+
+        function startSinglePlayer() {
+            grabProfileInfo();
+            startCinematicIntro();
+        }
+
+        function openMPMenu() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('mp-menu').style.display = 'flex';
+        }
+
+        function backToMainMenu() {
+            document.getElementById('mp-menu').style.display = 'none';
+            document.getElementById('waiting-room').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+            if(peer) { peer.destroy(); peer = null; }
+            connectedConns = [];
+        }
+
+        function grabProfileInfo() {
+            myProfile.name = document.getElementById('player-name-input').value.trim() || "Kül Gezgini";
+            myProfile.color = document.getElementById('player-color-input').value || "#3c3c48";
+        }
+
+        function openCreateRoomPrompt() {
+            grabProfileInfo();
+            let count = prompt("Kaç kişi oynayacaksınız? (En fazla 8 kişi):", "4");
+            maxPlayers = parseInt(count) || 4;
+            if (maxPlayers > 8) maxPlayers = 8;
+            if (maxPlayers < 2) maxPlayers = 2;
+
+            roomCode = 'ABYSS-' + Math.floor(100 + Math.random() * 900);
+            isHost = true;
+            peer = new Peer(roomCode.toLowerCase());
+            
+            peer.on('open', (id) => {
+                document.getElementById('mp-menu').style.display = 'none';
+                document.getElementById('waiting-room').style.display = 'flex';
+                document.getElementById('room-code-display').innerText = "Oda Kodun: " + roomCode;
+                document.getElementById('start-mp-game-btn').style.display = 'block';
+                document.getElementById('room-diff-info').innerText = "Zorluk: " + gameDifficulty.toUpperCase() + " ('G' tuşu ile değiştirebilirsin)";
+                updateRoomUI();
+            });
+
+            peer.on('error', (err) => {
+                alert("Oda oluşturulamadı: " + err.type);
+            });
+
+            peer.on('connection', (c) => {
+                if (connectedConns.length >= maxPlayers - 1) {
+                    c.close();
+                    return;
+                }
+                connectedConns.push(c);
+                updateRoomUI();
+
+                c.on('data', (data) => {
+                    handleNetworkData(data, c);
+                });
+
+                c.on('close', () => {
+                    connectedConns = connectedConns.filter(item => item !== c);
+                    if (remotePlayers[c.peer]) {
+                        scene.remove(remotePlayers[c.peer]);
+                        delete remotePlayers[c.peer];
+                    }
+                    updateRoomUI();
+                });
+            });
+        }
+
+        function openJoinRoomPrompt() {
+            grabProfileInfo();
+            let code = prompt("Lütfen Oda Kodunu Gir (Örn: ABYSS-123):");
+            if (!code) return;
+
+            isHost = false;
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                hostConnection = peer.connect(code.trim().toLowerCase());
+                
+                hostConnection.on('open', () => {
+                    document.getElementById('mp-menu').style.display = 'none';
+                    document.getElementById('waiting-room').style.display = 'flex';
+                    document.getElementById('room-code-display').innerText = "Bağlanılan Oda: " + code.toUpperCase();
+                    document.getElementById('room-info').innerText = "Oda sahibinin oyunu başlatması bekleniyor...";
+                    document.getElementById('start-mp-game-btn').style.display = 'none';
+                    document.getElementById('player-list').innerText = "Odaya başarıyla katıldın!";
+                    
+                    hostConnection.send({ type: 'JOIN_INFO', profile: myProfile });
+                });
+
+                hostConnection.on('error', (err) => {
+                    alert("Odaya bağlanılamadı! Kodu kontrol edin.");
+                });
+
+                hostConnection.on('data', (data) => {
+                    handleNetworkData(data, hostConnection);
+                });
+            });
+        }
+
+        function updateRoomUI() {
+            let totalPlayers = connectedConns.length + 1;
+            document.getElementById('room-info').innerText = `Oyuncu Sayısı: ${totalPlayers} / ${maxPlayers}`;
+            document.getElementById('player-list').innerText = `Bağlı Savaşçılar: ${totalPlayers} Kişi Odada`;
+
+            let startBtn = document.getElementById('start-mp-game-btn');
+            if (isHost) {
+                if (totalPlayers >= 2) {
+                    startBtn.disabled = false;
+                    startBtn.innerText = "SAVAŞI BAŞLAT";
+                } else {
+                    startBtn.disabled = true;
+                    startBtn.innerText = "SAVAŞI BAŞLAT (En Az 2 Kişi Gerekli)";
+                }
+            }
+        }
+
+        function broadcast(data) {
+            if (isHost) {
+                connectedConns.forEach(c => {
+                    if (c.open) c.send(data);
+                });
+            } else if (hostConnection && hostConnection.open) {
+                hostConnection.send(data);
+            }
+        }
+
+        function handleNetworkData(data, conn) {
+            if (data.type === 'START_GAME') {
+                startCinematicIntro();
+            } else if (data.type === 'DIFF_UPDATE') {
+                gameDifficulty = data.diff;
+                document.getElementById('room-diff-info').innerText = "Zorluk Güncellendi: " + gameDifficulty.toUpperCase();
+            } else if (data.type === 'JOIN_INFO' && isHost) {
+                conn.playerProfile = data.profile;
+                // Kurucu kendi bilgilerini yeni gelene bildirir
+                conn.send({ type: 'PLAYER_JOINED', id: peer.id, profile: myProfile });
+                // Yeni gelenin bilgilerini odadaki diğer kişilere yayar
+                broadcast({ type: 'PLAYER_JOINED', id: conn.peer, profile: data.profile });
+            } else if (data.type === 'PLAYER_JOINED') {
+                createRemotePlayer(data.id, data.profile);
+            } else if (data.type === 'PLAYER_POS') {
+                updateRemotePlayerTransform(data.id, data.pos, data.rot, data.animY);
+            } else if (data.type === 'PLAYER_DIED') {
+                if (remotePlayers[data.id]) {
+                    remotePlayers[data.id].rotation.z = Math.PI / 2;
+                }
+            } else if (data.type === 'BOSS_DAMAGE') {
+                bossStats.hp = Math.max(0, bossStats.hp - data.amount);
+                updateHUD();
+                flashBossColor();
+                if (bossStats.hp <= 0) triggerVictory();
+            } else if (data.type === 'MINION_DAMAGE') {
+                let targetMinion = minions[data.index];
+                if (targetMinion) {
+                    targetMinion.hp -= data.amount;
+                    flashMeshColor(targetMinion, 0xffffff);
+                    if (targetMinion.hp <= 0) {
+                        scene.remove(targetMinion);
+                        minions.splice(data.index, 1);
+                    }
+                }
+            }
+        }
+
+        function createRemotePlayer(id, profile) {
+            // Kendi ID'mizse veya zaten oluşturulmuşsa tekrar oluşturma
+            let myId = peer ? peer.id : '';
+            if (id === myId || remotePlayers[id]) return;
+
+            const group = new THREE.Group();
+            
+            const bodyMat = new THREE.MeshStandardMaterial({ color: profile.color || '#3c3c48', metalness: 0.6, roughness: 0.4 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.4, 0.5), bodyMat);
+            body.position.y = 0.7;
+            group.add(body);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), bodyMat);
+            head.position.y = 1.5;
+            group.add(head);
+
+            scene.add(group);
+            remotePlayers[id] = group;
+        }
+
+        function updateRemotePlayerTransform(id, pos, rot, animY) {
+            let myId = peer ? peer.id : '';
+            if (id === myId) return; // Kendi pozisyonumuzu remote olarak güncelleme
+
+            if (!remotePlayers[id]) {
+                createRemotePlayer(id, { color: '#888888' });
+            }
+            let pMesh = remotePlayers[id];
+            if (pMesh) {
+                pMesh.position.set(pos.x, pos.y, pos.z);
+                pMesh.rotation.y = rot;
+                pMesh.children[0].position.y = 0.7 + animY;
+            }
+        }
+
+        function flashBossColor() {
+            if (boss && boss.children[0]) {
+                boss.children[0].material.emissive.setHex(0xff0000);
+                setTimeout(() => { if (boss && boss.children[0]) boss.children[0].material.emissive.setHex(0x000000); }, 150);
+            }
+        }
+
+        function flashMeshColor(mesh, hexColor) {
+            if (mesh && mesh.material) {
+                mesh.material.emissive.setHex(hexColor);
+                setTimeout(() => { if (mesh && mesh.material) mesh.material.emissive.setHex(0x000000); }, 100);
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('waiting-room').style.display === 'flex' && isHost) {
+                if (e.key === 'g' || e.key === 'G') {
+                    let diffs = ['easy', 'normal', 'hard', 'souls'];
+                    let nextIdx = (diffs.indexOf(gameDifficulty) + 1) % diffs.length;
+                    setDifficulty(diffs[nextIdx]);
+                    document.getElementById('room-diff-info').innerText = "Zorluk: " + gameDifficulty.toUpperCase() + " (Değiştirmek için 'G' tuşuna bas)";
+                }
+            }
+        });
+
+        function startMultiplayerGame() {
+            let totalPlayers = connectedConns.length + 1;
+            if (isHost && totalPlayers >= 2) {
+                broadcast({ type: 'START_GAME' });
+                startCinematicIntro();
+            }
+        }
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0c0c14);
+            scene.fog = new THREE.FogExp2(0x0c0c14, 0.018);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x444466, 1.8);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffaa66, 2.2);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const floorGeo = new THREE.CylinderGeometry(24, 24, 1.5, 36);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x1c1c24, roughness: 0.7, metalness: 0.3 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.position.y = -0.75;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const pillarGeo = new THREE.BoxGeometry(2, 9, 2);
+            const pillarMat = new THREE.MeshStandardMaterial({ color: 0x252530, roughness: 0.8 });
+            
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const pX = Math.cos(angle) * 21;
+                const pZ = Math.sin(angle) * 21;
+                
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.set(pX, 3.5, pZ);
+                pillar.castShadow = true;
+                pillar.receiveShadow = true;
+                scene.add(pillar);
+
+                const tLight = new THREE.PointLight(0xff7722, 2.5, 16);
+                tLight.position.set(pX, 7.5, pZ);
+                scene.add(tLight);
+                torches.push(tLight);
+            }
+
+            // Kendi karakterimiz (Menüden seçtiğimiz renk ile tam uyumlu)
+            const playerGroup = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: myProfile.color, metalness: 0.6, roughness: 0.4 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.4, 0.5), bodyMat);
+            body.position.y = 0.7;
+            body.castShadow = true;
+            playerGroup.add(body);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), bodyMat);
+            head.position.y = 1.5;
+            playerGroup.add(head);
+
+            const swordMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, metalness: 0.95, roughness: 0.1 });
+            const sword = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.3, 0.05), swordMat);
+            sword.position.set(0.6, 0.8, 0.3);
+            sword.rotation.x = Math.PI / 4;
+            playerGroup.add(sword);
+            playerGroup.sword = sword;
+
+            player = playerGroup;
+            player.position.set(0, 0, 10);
+            scene.add(player);
+
+            const bossGroup = new THREE.Group();
+            const bossBodyMat = new THREE.MeshStandardMaterial({ color: 0x5a0000, metalness: 0.7, roughness: 0.3 });
+            const bossBody = new THREE.Mesh(new THREE.BoxGeometry(2.2, 3.6, 1.4), bossBodyMat);
+            bossBody.position.y = 1.8;
+            bossBody.castShadow = true;
+            bossGroup.add(bossBody);
+
+            const axeMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9 });
+            const axeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.5), axeMat);
+            axeHandle.position.set(1.5, 2.2, 0);
+            bossGroup.add(axeHandle);
+
+            boss = bossGroup;
+            boss.position.set(0, 0, -12);
+            scene.add(boss);
+
+            window.addEventListener('resize', onWindowResize);
+            setupInput();
+        }
+
+        function setupInput() {
+            document.getElementById('canvas-container').addEventListener('click', () => {
+                if (gameState === 'PLAYING') document.body.requestPointerLock();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (gameState !== 'PLAYING' || document.pointerLockElement !== document.body) return;
+                cameraAngle -= e.movementX * 0.003;
+                cameraPitch += e.movementY * 0.003;
+                if (cameraPitch < 0.1) cameraPitch = 0.1;
+                if (cameraPitch > 1.4) cameraPitch = 1.4;
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if (gameState !== 'PLAYING') return;
+                if (e.key === 'w' || e.key === 'W' || e.code === 'KeyW') keys.w = true;
+                if (e.key === 'a' || e.key === 'A' || e.code === 'KeyA') keys.a = true;
+                if (e.key === 's' || e.key === 'S' || e.code === 'KeyS') keys.s = true;
+                if (e.key === 'd' || e.key === 'D' || e.code === 'KeyD') keys.d = true;
+                
+                if ((e.code === 'Space' || e.key === ' ') && !combat.isDodging && playerStats.stamina >= 20) {
+                    combat.isDodging = true;
+                    playerStats.stamina -= 20;
+                    playSound('dodge');
+                    setTimeout(() => { combat.isDodging = false; }, 350);
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (gameState !== 'PLAYING') return;
+                if (e.key === 'w' || e.key === 'W' || e.code === 'KeyW') keys.w = false;
+                if (e.key === 'a' || e.key === 'A' || e.code === 'KeyA') keys.a = false;
+                if (e.key === 's' || e.key === 'S' || e.code === 'KeyS') keys.s = false;
+                if (e.key === 'd' || e.key === 'D' || e.code === 'KeyD') keys.d = false;
+            });
+
+            window.addEventListener('mousedown', (e) => {
+                if (gameState !== 'PLAYING' || !combat.canAttack || e.button !== 0) return;
+                if (playerStats.stamina < 15) return;
+                
+                playerStats.stamina -= 15;
+                combat.canAttack = false;
+
+                playSound('hit');
+                let swingTime = 0;
+                let originalRotX = player.sword.rotation.x;
+                
+                const swingInterval = setInterval(() => {
+                    swingTime += 0.3;
+                    player.sword.rotation.x -= 0.7;
+                    if (swingTime > 1.2) {
+                        clearInterval(swingInterval);
+                        player.sword.rotation.x = originalRotX;
+                        combat.canAttack = true;
+                    }
+                }, 16);
+
+                const dist = player.position.distanceTo(boss.position);
+                if (dist < 5.0) {
+                    bossStats.hp -= 25;
+                    if (bossStats.hp < 0) bossStats.hp = 0;
+                    updateHUD();
+                    flashBossColor();
+
+                    broadcast({ type: 'BOSS_DAMAGE', amount: 25 });
+                    if (bossStats.hp <= 0) triggerVictory();
+                }
+
+                for (let i = minions.length - 1; i >= 0; i--) {
+                    if (player.position.distanceTo(minions[i].position) < 3.0) {
+                        minions[i].hp -= 25;
+                        flashMeshColor(minions[i], 0xffffff);
+
+                        broadcast({ type: 'MINION_DAMAGE', index: i, amount: 25 });
+
+                        if (minions[i].hp <= 0) {
+                            scene.remove(minions[i]);
+                            minions.splice(i, 1);
+                        }
+                    }
+                }
+            });
+        }
+
+        function startCinematicIntro() {
+            document.getElementById('main-menu').style.opacity = '0';
+            document.getElementById('mp-menu').style.opacity = '0';
+            document.getElementById('waiting-room').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('main-menu').style.display = 'none';
+                document.getElementById('mp-menu').style.display = 'none';
+                document.getElementById('waiting-room').style.display = 'none';
+                document.getElementById('cinematic-subtitle').style.display = 'block';
+                gameState = 'INTRO';
+                introTimer = 0;
+            }, 800);
+        }
+
+        function openSettings() { document.getElementById('settings-panel').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settings-panel').style.display = 'none'; }
+        function closeGame() { alert("Oyundan çıkmak için bu sekmeyi kapatabilirsiniz."); }
+
+        function triggerGameOver() {
+            if (gameState === 'OVER') return;
+            gameState = 'OVER';
+            document.exitPointerLock();
+            document.getElementById('overlay-title').innerText = "ÖLDÜN";
+            document.getElementById('overlay-title').style.color = "#dc143c";
+            document.getElementById('overlay-desc').innerText = "Karanlık seni yuttu...";
+            document.getElementById('overlay-screen').style.display = 'flex';
+
+            broadcast({ type: 'PLAYER_DIED', id: peer ? peer.id : 'client' });
+        }
+
+        function triggerVictory() {
+            gameState = 'VICTORY';
+            document.exitPointerLock();
+            document.getElementById('overlay-title').innerText = "ZAFER";
+            document.getElementById('overlay-title').style.color = "#ffd700";
+            document.getElementById('overlay-desc').innerText = "Abyss Lord alt edildi! Kül tahtı senin oldu.";
+            document.getElementById('overlay-screen').style.display = 'flex';
+        }
+
+        let animTime = 0;
+        let clock = new THREE.Clock();
+        let activeSubText = "";
+        let netSyncTimer = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            let delta = clock.getDelta();
+
+            if (gameState === 'INTRO') {
+                introTimer += 6.5 * delta;
+                let camX = Math.sin(introTimer * 0.2) * 14;
+                let camZ = Math.cos(introTimer * 0.2) * 14 + 4;
+                let camY = 16 - introTimer * 0.5;
+                if (camY < 4.2) camY = 4.2;
+
+                camera.position.set(camX, camY, camZ);
+                camera.lookAt(boss.position.x, boss.position.y + 1.5, boss.position.z);
+
+                const subEl = document.getElementById('cinematic-subtitle');
+                let newSub = "";
+                if (introTimer < 3.5) {
+                    newSub = '"Cesur kül gezgini... Tahtımı almaya mı geldin?"';
+                } else if (introTimer < 7.0) {
+                    newSub = '"Karanlığın içinde kaybolacaksın!"';
+                } else {
+                    newSub = '"SONUN GELDİ!"';
+                }
+
+                if (newSub !== activeSubText) {
+                    activeSubText = newSub;
+                    subEl.innerText = activeSubText;
+                }
+
+                if (introTimer > 9.5) {
+                    gameState = 'PLAYING';
+                    subEl.style.display = 'none';
+                    document.getElementById('hud').style.display = 'flex';
+                    document.getElementById('boss-hud').style.display = 'block';
+                    document.getElementById('controls-hint').style.display = 'block';
+                    document.body.requestPointerLock();
+                    playSound('boss_roar');
+                    clock.getDelta();
+                }
+            } else if (gameState === 'PLAYING') {
+                animTime += delta * 10;
+                let moveSpeed = combat.isDodging ? 0.32 : 0.13;
+                
+                let moveDir = new THREE.Vector3(0, 0, 0);
+                if (keys.w) moveDir.z -= 1;
+                if (keys.s) moveDir.z += 1;
+                if (keys.a) moveDir.x -= 1;
+                if (keys.d) moveDir.x += 1;
+                
+                if (moveDir.length() > 0) {
+                    moveDir.normalize();
+                    moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngle);
+                    player.position.addScaledVector(moveDir, moveSpeed);
+                    player.position.y = Math.sin(animTime * 2.5) * 0.09;
+                    player.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+                } else {
+                    player.position.y = Math.sin(animTime * 0.8) * 0.03;
+                }
+
+                netSyncTimer += delta;
+                if (netSyncTimer > 0.05) {
+                    netSyncTimer = 0;
+                    broadcast({
+                        type: 'PLAYER_POS',
+                        pos: { x: player.position.x, y: player.position.y, z: player.position.z },
+                        rot: player.rotation.y,
+                        animY: player.position.y
+                    });
+                }
+
+                const maxArenaRadius = 22.0;
+                const playerDistFromCenter = Math.sqrt(player.position.x * player.position.x + player.position.z * player.position.z);
+                if (playerDistFromCenter > maxArenaRadius) {
+                    player.position.x = (player.position.x / playerDistFromCenter) * maxArenaRadius;
+                    player.position.z = (player.position.z / playerDistFromCenter) * maxArenaRadius;
+                }
+
+                if (playerStats.stamina < playerStats.maxStamina) {
+                    playerStats.stamina += 0.45;
+                    if (playerStats.stamina > playerStats.maxStamina) playerStats.stamina = playerStats.maxStamina;
+                }
+
+                minionTimer += delta;
+                jumpTimer += delta;
+
+                let diffConfig = difficultySettings[gameDifficulty];
+
+                if (minionTimer >= diffConfig.minionInterval) {
+                    minionTimer = 0;
+                    playSound('magic');
+                    
+                    for (let i = 0; i < diffConfig.minionCount; i++) {
+                        const minionGeo = new THREE.BoxGeometry(0.6, 1.2, 0.6);
+                        const minionMat = new THREE.MeshStandardMaterial({ color: 0x8b0000, roughness: 0.4 });
+                        const minion = new THREE.Mesh(minionGeo, minionMat);
+                        
+                        minion.hp = diffConfig.minionHp;
+
+                        const angle = Math.random() * Math.PI * 2;
+                        const distOffset = 3 + Math.random() * 3;
+                        minion.position.set(boss.position.x + Math.cos(angle) * distOffset, 0.6, boss.position.z + Math.sin(angle) * distOffset);
+                        scene.add(minion);
+                        minions.push(minion);
+                    }
+                }
+
+                if (jumpTimer >= diffConfig.jumpInterval && !bossJumpState.isJumping) {
+                    jumpTimer = 0;
+                    playSound('boss_roar');
+                    bossJumpState.isJumping = true;
+                    bossJumpState.progress = 0;
+                    bossJumpState.hasDamaged = false;
+                    bossJumpState.startPos.copy(boss.position);
+                    bossJumpState.targetPos.copy(player.position);
+                }
+
+                if (bossJumpState.isJumping) {
+                    bossJumpState.progress += diffConfig.jumpSpeed;
+                    let p = bossJumpState.progress;
+                    boss.position.lerpVectors(bossJumpState.startPos, bossJumpState.targetPos, p);
+                    boss.position.y = Math.sin(p * Math.PI) * 7.0;
+
+                    if (p >= 0.99 && !bossJumpState.hasDamaged) {
+                        bossJumpState.hasDamaged = true;
+                        if (boss.position.distanceTo(player.position) < 2.8 && !combat.isDodging) {
+                            let slamDmg = 30 * diffConfig.bossDmgMultiplier;
+                            playerStats.hp -= slamDmg;
+                            if (playerStats.hp <= 0) { playerStats.hp = 0; triggerGameOver(); }
+                        }
+                    }
+
+                    if (p >= 1.0) {
+                        bossJumpState.isJumping = false;
+                        boss.position.y = 0;
+                        playSound('hit');
+                    }
+                } else {
+                    const dirToPlayer = new THREE.Vector3().subVectors(player.position, boss.position);
+                    const distToPlayer = dirToPlayer.length();
+                    dirToPlayer.y = 0;
+                    dirToPlayer.normalize();
+
+                    bossStats.attackTimer++;
+                    if (bossStats.attackTimer > 110) {
+                        bossStats.attackTimer = 0;
+                        const rand = Math.random();
+                        let baseDmg = 20 * diffConfig.bossDmgMultiplier;
+
+                        if (rand < 0.65) {
+                            if (distToPlayer < 4.2 && !combat.isDodging) {
+                                playerStats.hp -= baseDmg;
+                                playSound('hit');
+                            }
+                        } else {
+                            playSound('magic');
+                            const sphereGeo = new THREE.SphereGeometry(0.55, 8, 8);
+                            const sphereMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+                            const fireball = new THREE.Mesh(sphereGeo, sphereMat);
+                            fireball.position.copy(boss.position);
+                            fireball.position.y += 2;
+                            
+                            const fireballDir = new THREE.Vector3().subVectors(player.position, fireball.position).normalize();
+                            scene.add(fireball);
+                            projectiles.push({ mesh: fireball, dir: fireballDir, life: 140, damage: baseDmg * 0.8 });
+                        }
+
+                        if (playerStats.hp <= 0) {
+                            playerStats.hp = 0;
+                            triggerGameOver();
+                        }
+                    }
+
+                    minions.forEach((m) => {
+                        const mDir = new THREE.Vector3().subVectors(player.position, m.position);
+                        mDir.y = 0;
+                        mDir.normalize();
+                        m.position.addScaledVector(mDir, diffConfig.minionSpeed);
+
+                        if (m.position.distanceTo(player.position) < 1.2 && !combat.isDodging) {
+                            let minionDmg = 0.35 * diffConfig.bossDmgMultiplier;
+                            playerStats.hp -= minionDmg;
+                            updateHUD();
+                        }
+                    });
+
+                    for (let i = projectiles.length - 1; i >= 0; i--) {
+                        let p = projectiles[i];
+                        p.mesh.position.addScaledVector(p.dir, 0.22);
+                        p.life--;
+
+                        if (p.mesh.position.distanceTo(player.position) < 1.3) {
+                            if (!combat.isDodging) {
+                                playerStats.hp -= p.damage;
+                                playSound('hit');
+                                if (playerStats.hp <= 0) { playerStats.hp = 0; triggerGameOver(); }
+                            }
+                            scene.remove(p.mesh);
+                            projectiles.splice(i, 1);
+                        } else if (p.life <= 0) {
+                            scene.remove(p.mesh);
+                            projectiles.splice(i, 1);
+                        }
+                    }
+
+                    if (distToPlayer > 3.2) {
+                        boss.position.addScaledVector(dirToPlayer, 0.042);
+                        boss.position.y = Math.abs(Math.sin(animTime * 1.5)) * 0.18;
+                    }
+                }
+                
+                if (!bossJumpState.isJumping) {
+                    boss.lookAt(player.position.x, player.position.y, player.position.z);
+                }
+                updateHUD();
+            }
+
+            torches.forEach((t, index) => {
+                t.intensity = 2.2 + Math.sin(animTime * 3 + index) * 0.5;
+            });
+
+            if (gameState === 'PLAYING' && player) {
+                const dist = 7.0;
+                const height = dist * Math.sin(cameraPitch);
+                const horizDist = dist * Math.cos(cameraPitch);
+
+                camera.position.x = player.position.x + Math.sin(cameraAngle) * horizDist;
+                camera.position.z = player.position.z + Math.cos(cameraAngle) * horizDist;
+                camera.position.y = player.position.y + height;
+                camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function updateHUD() {
+            document.getElementById('hp-fill').style.width = Math.max(0, (playerStats.hp / playerStats.maxHp) * 100) + '%';
+            document.getElementById('hp-text').innerText = `${Math.max(0, Math.ceil(playerStats.hp))} / ${playerStats.maxHp}`;
+            document.getElementById('stamina-fill').style.width = (playerStats.stamina / playerStats.maxStamina) * 100 + '%';
+            document.getElementById('stamina-text').innerText = `${Math.ceil(playerStats.stamina)} / ${playerStats.maxStamina}`;
+            document.getElementById('boss-hp-fill').style.width = Math.max(0, (bossStats.hp / bossStats.maxHp) * 100) + '%';
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init3D();
+        animate();
+    </script>
+</body>
+</html>
